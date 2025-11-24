@@ -1,0 +1,837 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>CSV Data Search - Large File Support</title>
+<style>
+        * {
+            box-sizing: border-box;
+            font-family: Arial, sans-serif;
+        }
+        body {
+            margin: 0;
+            padding: 10px;
+            background-color: #f5f5f5;
+        }
+        .container {
+            max-width: 1400px;
+            margin: 0 auto;
+            background-color: white;
+            border-radius: 8px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+            padding: 15px;
+        }
+        h1 {
+            text-align: center;
+            color: #333;
+            margin-bottom: 15px;
+            font-size: 1.5rem;
+        }
+        .file-selector {
+            margin-bottom: 15px;
+        }
+        .file-input-container {
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+            margin-bottom: 10px;
+        }
+        .file-input-row {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 10px;
+            justify-content: center;
+        }
+        .file-input-container input[type="file"] {
+            display: none;
+        }
+        .file-input-container label {
+            display: inline-block;
+            padding: 12px 20px;
+            background-color: #4a90e2;
+            color: white;
+            border-radius: 4px;
+            cursor: pointer;
+            transition: background-color 0.3s;
+            text-align: center;
+            flex: 1;
+            min-width: 140px;
+        }
+        .file-input-container label:hover {
+            background-color: #3a7bc8;
+        }
+        #clear-data {
+            padding: 12px 20px;
+            background-color: #e74c3c;
+            color: white;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            transition: background-color 0.3s;
+            flex: 1;
+            min-width: 140px;
+        }
+        #clear-data:hover {
+            background-color: #c0392b;
+        }
+        .file-info {
+            margin-top: 10px;
+            font-size: 14px;
+            color: #666;
+        }
+        .file-status {
+            margin-top: 10px;
+            font-weight: bold;
+            text-align: center;
+        }
+        .file-status.success {
+            color: #28a745;
+        }
+        .file-status.error {
+            color: #dc3545;
+        }
+        .search-form {
+            display: grid;
+            grid-template-columns: 1fr;
+            gap: 12px;
+            margin-bottom: 20px;
+        }
+        @media (min-width: 768px) {
+            .search-form {
+                grid-template-columns: repeat(2, 1fr);
+            }
+        }
+        .form-group {
+            display: flex;
+            flex-direction: column;
+        }
+        label {
+            margin-bottom: 5px;
+            font-weight: bold;
+            color: #555;
+            font-size: 14px;
+        }
+        input {
+            padding: 12px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            font-size: 16px;
+            width: 100%;
+        }
+        input:focus {
+            outline: none;
+            border-color: #4a90e2;
+            box-shadow: 0 0 0 2px rgba(74, 144, 226, 0.2);
+        }
+        .results-container {
+            margin-top: 20px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            overflow: hidden;
+        }
+        .results-header {
+            background-color: #f8f9fa;
+            padding: 12px 15px;
+            font-weight: bold;
+            font-size: 10px;
+            border-bottom: 1px solid #ddd;
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+        }
+        @media (min-width: 768px) {
+            .results-header {
+                flex-direction: row;
+                justify-content: space-between;
+                align-items: center;
+            }
+        }
+        .results-table-container {
+            max-height: 500px;
+            overflow: auto;
+        }
+        .results-table {
+            width: 100%;
+            border-collapse: collapse;
+            min-width: 600px;
+        }
+        .results-table th {
+            background-color: #f1f1f1;
+            padding: 12px 8px;
+            text-align: left;
+            border-bottom: 1px solid #ddd;
+            position: sticky;
+            top: 0;
+            font-size: 10px;
+        }
+        .results-table td {
+            padding: 12px 8px;
+            border-bottom: 1px solid #eee;
+            font-size: 10px;
+            cursor: pointer;
+        }
+        .results-table tr:hover {
+            background-color: #f9f9f9;
+        }
+        .no-results {
+            padding: 20px;
+            text-align: center;
+            color: #777;
+        }
+        .pagination {
+            display: flex;
+            justify-content: center;
+            margin-top: 15px;
+            gap: 5px;
+            flex-wrap: wrap;
+        }
+        .pagination button {
+            padding: 8px 12px;
+            border: 1px solid #ddd;
+            background-color: white;
+            cursor: pointer;
+            border-radius: 3px;
+            min-width: 44px;
+            min-height: 44px;
+        }
+        .pagination button.active {
+            background-color: #4a90e2;
+            color: white;
+            border-color: #4a90e2;
+        }
+        .pagination button:hover:not(.active) {
+            background-color: #f0f0f0;
+        }
+        .pagination button:disabled {
+            background-color: #f5f5f5;
+            color: #aaa;
+            cursor: not-allowed;
+        }
+        .loading {
+            text-align: center;
+            padding: 20px;
+            color: #666;
+        }
+        .results-header span:first-child {
+            font-size: 12px;
+        }
+        .stats {
+            font-size: 12px;
+            color: #666;
+            text-align: center;
+        }
+        @media (min-width: 768px) {
+            .stats {
+                text-align: left;
+            }
+        }
+        .progress-bar {
+            width: 100%;
+            height: 5px;
+            background-color: #f0f0f0;
+            border-radius: 3px;
+            margin-top: 5px;
+            overflow: hidden;
+        }
+        .progress {
+            height: 100%;
+            background-color: #4a90e2;
+            width: 0%;
+            transition: width 0.3s;
+        }
+        
+        /* Highlight style for search terms */
+        .highlight {
+            background-color: #ffeb3b;
+            font-weight: bold;
+            padding: 1px 2px;
+            border-radius: 2px;
+        }
+        
+        /* Context view section */
+        .context-container {
+            margin-top: 30px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            overflow: hidden;
+        }
+        .context-header {
+            background-color: #f8f9fa;
+            padding: 12px 15px;
+            font-weight: bold;
+            font-size: 10px;
+            border-bottom: 1px solid #ddd;
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+        }
+        @media (min-width: 768px) {
+            .context-header {
+                flex-direction: row;
+                justify-content: space-between;
+                align-items: center;
+            }
+        }
+        .context-table-container {
+            max-height: 400px;
+            overflow: auto;
+        }
+        .context-table {
+            width: 100%;
+            border-collapse: collapse;
+            min-width: 600px;
+        }
+        .context-table th {
+            background-color: #f1f1f1;
+            padding: 12px 8px;
+            text-align: left;
+            border-bottom: 1px solid #ddd;
+            position: sticky;
+            top: 0;
+            font-size: 10px;
+        }
+        .context-table td {
+            padding: 12px 8px;
+            border-bottom: 1px solid #eee;
+            font-size: 10px;
+        }
+        .context-table tr.context-highlight {
+            background-color: #e8f4fd;
+            font-weight: bold;
+        }
+        
+        /* Mobile-specific improvements - MOVED TO VERY END */
+        @media (max-width: 767px) {
+            body {
+                padding: 5px;
+            }
+            .container {
+                padding: 10px;
+            }
+            h1 {
+                font-size: 1.3rem;
+            }
+            .file-input-container label, #clear-data {
+                padding: 14px 16px;
+                font-size: 16px;
+            }
+            input {
+                padding: 14px;
+            }
+            table.results-table th, 
+            table.results-table td,
+            table.context-table th,
+            table.context-table td {
+                padding: 10px 6px;
+                font-size: 8px;
+            }
+            .pagination button {
+                padding: 10px;
+                min-width: 40px;
+                min-height: 40px;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>CSV Data Search - Large File Support</h1>
+        
+        <div class="file-selector">
+            <div class="file-input-container">
+                <div class="file-input-row">
+                    <input type="file" id="file1" accept=".csv">
+                    <label for="file1">Upload Trichy1.csv</label>
+                    
+                    <input type="file" id="file2" accept=".csv">
+                    <label for="file2">Upload Trichy2.csv</label>
+                </div>
+                <div class="file-input-row">
+                    <button id="clear-data">Clear All Data</button>
+                </div>
+            </div>
+            <div id="file-status" class="file-status"></div>
+            <div class="progress-bar">
+                <div class="progress" id="progress-bar"></div>
+            </div>
+        </div>
+        
+        <div class="search-form">
+            <div class="form-group">
+                <label for="name">Name of the Electors</label>
+                <input type="text" id="name" placeholder="Enter Name">
+            </div>
+            <div class="form-group">
+                <label for="relation-name">Relation Name</label>
+                <input type="text" id="relation-name" placeholder="Enter Relation Name">
+            </div>
+        </div>
+        
+        <div class="results-container">
+            <div class="results-header">
+                <span>Search Results</span>
+                <span class="stats" id="results-stats">No data loaded</span>
+            </div>
+            <div id="results-content">
+                <div class="no-results">Upload CSV files and enter search criteria</div>
+            </div>
+            <div class="pagination" id="pagination"></div>
+        </div>
+        
+        <!-- New context view section -->
+        <div class="context-container" id="context-container" style="display: none;">
+            <div class="context-header">
+                <span>Context View</span>
+                <span class="stats" id="context-stats">Click on a row to see its context</span>
+            </div>
+            <div id="context-content">
+                <div class="no-results">Click on a row in the search results to see its context</div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Data storage for uploaded CSV files
+        const csvData = {
+            Trichy1: null,
+            Trichy2: null
+        };
+
+        // DOM elements
+        const file1Input = document.getElementById('file1');
+        const file2Input = document.getElementById('file2');
+        const clearDataBtn = document.getElementById('clear-data');
+        const fileStatus = document.getElementById('file-status');
+        const progressBar = document.getElementById('progress-bar');
+        const nameInput = document.getElementById('name');
+        const relationNameInput = document.getElementById('relation-name');
+        const resultsContent = document.getElementById('results-content');
+        const resultsStats = document.getElementById('results-stats');
+        const paginationContainer = document.getElementById('pagination');
+        const contextContainer = document.getElementById('context-container');
+        const contextContent = document.getElementById('context-content');
+        const contextStats = document.getElementById('context-stats');
+
+        // Pagination variables
+        let currentPage = 1;
+        const rowsPerPage = 100;
+        let filteredData = [];
+        let allData = []; // Store all data with line numbers
+        let lineNumberOffset = 0; // Track line number offset between files
+
+        // Event listeners for file uploads
+        file1Input.addEventListener('change', (e) => handleFileUpload(e, 'Trichy1'));
+        file2Input.addEventListener('change', (e) => handleFileUpload(e, 'Trichy2'));
+        clearDataBtn.addEventListener('click', clearAllData);
+
+        // Event listeners for search inputs with debouncing
+        const searchInputs = [nameInput, relationNameInput];
+        
+        searchInputs.forEach(input => {
+            input.addEventListener('input', debounce(performSearch, 300));
+        });
+
+        // Debounce function to limit how often search is performed
+        function debounce(func, wait) {
+            let timeout;
+            return function executedFunction(...args) {
+                const later = () => {
+                    clearTimeout(timeout);
+                    func(...args);
+                };
+                clearTimeout(timeout);
+                timeout = setTimeout(later, wait);
+            };
+        }
+
+        // Clear all data
+        function clearAllData() {
+            csvData.Trichy1 = null;
+            csvData.Trichy2 = null;
+            file1Input.value = '';
+            file2Input.value = '';
+            fileStatus.textContent = 'All data cleared';
+            fileStatus.className = 'file-status success';
+            resultsStats.textContent = 'No data loaded';
+            resultsContent.innerHTML = '<div class="no-results">Upload CSV files and enter search criteria</div>';
+            paginationContainer.innerHTML = '';
+            contextContainer.style.display = 'none';
+            allData = [];
+            lineNumberOffset = 0;
+        }
+
+        // Handle file upload and parsing with progress tracking
+        function handleFileUpload(event, fileName) {
+            const file = event.target.files[0];
+            if (!file) return;
+            
+            // Show loading state
+            fileStatus.textContent = `Loading ${fileName}.csv...`;
+            fileStatus.className = 'file-status';
+            progressBar.style.width = '0%';
+            
+            const reader = new FileReader();
+            
+            reader.onprogress = function(e) {
+                if (e.lengthComputable) {
+                    const percentLoaded = Math.round((e.loaded / e.total) * 100);
+                    progressBar.style.width = `${percentLoaded}%`;
+                }
+            };
+            
+            reader.onload = function(e) {
+                try {
+                    const csvText = e.target.result;
+                    progressBar.style.width = '100%';
+                    
+                    // Parse in chunks to avoid blocking the UI
+                    setTimeout(() => {
+                        const parsedData = parseCSV(csvText);
+                        csvData[fileName] = parsedData;
+                        
+                        fileStatus.textContent = `${fileName}.csv loaded successfully with ${parsedData.length.toLocaleString()} records`;
+                        fileStatus.className = 'file-status success';
+                        
+                        // Reset progress bar
+                        setTimeout(() => {
+                            progressBar.style.width = '0%';
+                        }, 1000);
+                        
+                        // Rebuild allData with line numbers
+                        rebuildAllData();
+                        
+                        // Perform search if we have data loaded
+                        performSearch();
+                    }, 100);
+                } catch (error) {
+                    fileStatus.textContent = `Error parsing ${fileName}.csv: ${error.message}`;
+                    fileStatus.className = 'file-status error';
+                    progressBar.style.width = '0%';
+                }
+            };
+            
+            reader.onerror = function() {
+                fileStatus.textContent = `Error reading ${fileName}.csv`;
+                fileStatus.className = 'file-status error';
+                progressBar.style.width = '0%';
+            };
+            
+            reader.readAsText(file);
+        }
+
+        // Parse CSV text into an array of objects
+        function parseCSV(csvText) {
+            const lines = csvText.split('\n').filter(line => line.trim() !== '');
+            if (lines.length < 2) {
+                throw new Error('CSV file is empty or has no data rows');
+            }
+            
+            // Extract headers
+            const headers = lines[0].split(',').map(header => header.trim());
+            
+            // Process data rows
+            const data = [];
+            for (let i = 1; i < lines.length; i++) {
+                const values = lines[i].split(',');
+                const row = {};
+                
+                // Map values to headers
+                headers.forEach((header, index) => {
+                    row[header] = values[index] ? values[index].trim() : '';
+                });
+                
+                data.push(row);
+            }
+            
+            return data;
+        }
+
+        // Rebuild allData with line numbers
+        function rebuildAllData() {
+            allData = [];
+            lineNumberOffset = 0;
+            
+            // Add data from Trichy1 with line numbers
+            if (csvData.Trichy1) {
+                csvData.Trichy1.forEach((row, index) => {
+                    allData.push({
+                        ...row,
+                        _lineNumber: index + 1 // Line numbers start from 1
+                    });
+                });
+                lineNumberOffset = csvData.Trichy1.length;
+            }
+            
+            // Add data from Trichy2 with line numbers
+            if (csvData.Trichy2) {
+                csvData.Trichy2.forEach((row, index) => {
+                    allData.push({
+                        ...row,
+                        _lineNumber: index + 1 + lineNumberOffset
+                    });
+                });
+            }
+        }
+
+        // Function to highlight text in search results
+        function highlightText(text, searchTerm) {
+            if (!searchTerm) return text;
+            
+            const regex = new RegExp(`(${escapeRegExp(searchTerm)})`, 'gi');
+            return text.replace(regex, '<span class="highlight">$1</span>');
+        }
+
+        // Helper function to escape special regex characters
+        function escapeRegExp(string) {
+            return string.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+        }
+
+        // Main search function
+        function performSearch() {
+            // Check if we have any data loaded
+            const loadedFiles = Object.keys(csvData).filter(key => csvData[key] !== null);
+            
+            if (loadedFiles.length === 0) {
+                resultsContent.innerHTML = '<div class="no-results">Upload CSV files and enter search criteria</div>';
+                resultsStats.textContent = 'No data loaded';
+                paginationContainer.innerHTML = '';
+                contextContainer.style.display = 'none';
+                return;
+            }
+            
+            // Get search criteria
+            const nameFilter = nameInput.value.toLowerCase();
+            const relationNameFilter = relationNameInput.value.toLowerCase();
+            
+            // Show loading indicator for large datasets
+            if (allData.length > 10000) {
+                resultsContent.innerHTML = '<div class="loading">Searching... (this may take a moment for large datasets)</div>';
+            }
+            
+            // Use setTimeout to allow UI to update before intensive operation
+            setTimeout(() => {
+                // Filter data
+                filteredData = allData.filter(item => {
+                    return (
+                        (nameFilter === '' || (item['Name of the Electors'] && item['Name of the Electors'].toLowerCase().includes(nameFilter))) &&
+                        (relationNameFilter === '' || (item['Relation Name'] && item['Relation Name'].toLowerCase().includes(relationNameFilter)))
+                    );
+                });
+                
+                // Reset to first page
+                currentPage = 1;
+                
+                // Update stats
+                resultsStats.textContent = `Showing ${Math.min(rowsPerPage, filteredData.length)} of ${filteredData.length} records`;
+                
+                // Display results
+                displayResultsPage();
+            }, 10);
+        }
+
+        // Display results for current page
+        function displayResultsPage() {
+            if (filteredData.length === 0) {
+                resultsContent.innerHTML = '<div class="no-results">No matching records found</div>';
+                paginationContainer.innerHTML = '';
+                contextContainer.style.display = 'none';
+                return;
+            }
+            
+            // Calculate pagination
+            const totalPages = Math.ceil(filteredData.length / rowsPerPage);
+            const startIndex = (currentPage - 1) * rowsPerPage;
+            const endIndex = Math.min(startIndex + rowsPerPage, filteredData.length);
+            const pageData = filteredData.slice(startIndex, endIndex);
+            
+            // Get headers from first data item
+            const headers = Object.keys(pageData[0] || {});
+            
+            // Get search terms for highlighting
+            const nameSearchTerm = nameInput.value;
+            const relationNameSearchTerm = relationNameInput.value;
+            
+            let tableHTML = `
+                <div class="results-table-container">
+                    <table class="results-table">
+                        <thead>
+                            <tr>
+                                <th>Line #</th>
+                                ${headers.filter(h => h !== '_lineNumber').map(header => `<th>${header}</th>`).join('')}
+                            </tr>
+                        </thead>
+                        <tbody>
+            `;
+            
+            pageData.forEach(item => {
+                tableHTML += `<tr data-line="${item._lineNumber}">`;
+                tableHTML += `<td>${item._lineNumber}</td>`;
+                
+                headers.filter(h => h !== '_lineNumber').forEach(header => {
+                    let cellValue = item[header] || '';
+                    
+                    // Apply highlighting to relevant columns
+                    if (header === 'Name of the Electors' && nameSearchTerm) {
+                        cellValue = highlightText(cellValue, nameSearchTerm);
+                    } else if (header === 'Relation Name' && relationNameSearchTerm) {
+                        cellValue = highlightText(cellValue, relationNameSearchTerm);
+                    }
+                    
+                    tableHTML += `<td>${cellValue}</td>`;
+                });
+                tableHTML += '</tr>';
+            });
+            
+            tableHTML += `
+                        </tbody>
+                    </table>
+                </div>
+            `;
+            
+            resultsContent.innerHTML = tableHTML;
+            
+            // Add click event listeners to table rows
+            document.querySelectorAll('.results-table tbody tr').forEach(row => {
+                row.addEventListener('click', () => {
+                    const lineNumber = parseInt(row.getAttribute('data-line'));
+                    showContextView(lineNumber);
+                });
+            });
+            
+            // Update pagination controls
+            updatePagination(totalPages);
+            
+            // Update stats
+            resultsStats.textContent = `Showing ${startIndex + 1}-${endIndex} of ${filteredData.length} records`;
+        }
+
+        // Show context view for a specific line number
+        function showContextView(lineNumber) {
+            // Find the index of the selected line in allData
+            const selectedIndex = allData.findIndex(item => item._lineNumber === lineNumber);
+            
+            if (selectedIndex === -1) {
+                contextContent.innerHTML = '<div class="no-results">Could not find context for the selected row</div>';
+                return;
+            }
+            
+            // Calculate the range of lines to show (5 above and 5 below)
+            const startIndex = Math.max(0, selectedIndex - 5);
+            const endIndex = Math.min(allData.length - 1, selectedIndex + 5);
+            const contextData = allData.slice(startIndex, endIndex + 1);
+            
+            // Get headers from first data item
+            const headers = Object.keys(contextData[0] || {});
+            
+            // Get search terms for highlighting
+            const nameSearchTerm = nameInput.value;
+            const relationNameSearchTerm = relationNameInput.value;
+            
+            let tableHTML = `
+                <div class="context-table-container">
+                    <table class="context-table">
+                        <thead>
+                            <tr>
+                                <th>Line #</th>
+                                ${headers.filter(h => h !== '_lineNumber').map(header => `<th>${header}</th>`).join('')}
+                            </tr>
+                        </thead>
+                        <tbody>
+            `;
+            
+            contextData.forEach(item => {
+                const isSelected = item._lineNumber === lineNumber;
+                tableHTML += `<tr class="${isSelected ? 'context-highlight' : ''}">`;
+                tableHTML += `<td>${item._lineNumber}</td>`;
+                
+                headers.filter(h => h !== '_lineNumber').forEach(header => {
+                    let cellValue = item[header] || '';
+                    
+                    // Apply highlighting to relevant columns
+                    if (header === 'Name of the Electors' && nameSearchTerm) {
+                        cellValue = highlightText(cellValue, nameSearchTerm);
+                    } else if (header === 'Relation Name' && relationNameSearchTerm) {
+                        cellValue = highlightText(cellValue, relationNameSearchTerm);
+                    }
+                    
+                    tableHTML += `<td>${cellValue}</td>`;
+                });
+                tableHTML += '</tr>';
+            });
+            
+            tableHTML += `
+                        </tbody>
+                    </table>
+                </div>
+            `;
+            
+            contextContent.innerHTML = tableHTML;
+            contextStats.textContent = `Showing context for line ${lineNumber} (lines ${startIndex + 1} to ${endIndex + 1})`;
+            contextContainer.style.display = 'block';
+            
+            // Scroll to the highlighted row in the context view
+            setTimeout(() => {
+                const highlightedRow = document.querySelector('.context-highlight');
+                if (highlightedRow) {
+                    highlightedRow.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                }
+            }, 100);
+        }
+
+        // Update pagination controls
+        function updatePagination(totalPages) {
+            if (totalPages <= 1) {
+                paginationContainer.innerHTML = '';
+                return;
+            }
+            
+            let paginationHTML = '';
+            
+            // Previous button
+            paginationHTML += `<button ${currentPage === 1 ? 'disabled' : ''} id="prev-page">Previous</button>`;
+            
+            // Page numbers
+            const maxVisiblePages = 5;
+            let startPage = Math.max(1, currentPage - Math.floor(maxVisiblePages / 2));
+            let endPage = Math.min(totalPages, startPage + maxVisiblePages - 1);
+            
+            // Adjust if we're at the end
+            if (endPage - startPage + 1 < maxVisiblePages) {
+                startPage = Math.max(1, endPage - maxVisiblePages + 1);
+            }
+            
+            for (let i = startPage; i <= endPage; i++) {
+                paginationHTML += `<button class="${i === currentPage ? 'active' : ''}" data-page="${i}">${i}</button>`;
+            }
+            
+            // Next button
+            paginationHTML += `<button ${currentPage === totalPages ? 'disabled' : ''} id="next-page">Next</button>`;
+            
+            paginationContainer.innerHTML = paginationHTML;
+            
+            // Add event listeners
+            document.getElementById('prev-page')?.addEventListener('click', () => {
+                if (currentPage > 1) {
+                    currentPage--;
+                    displayResultsPage();
+                }
+            });
+            
+            document.getElementById('next-page')?.addEventListener('click', () => {
+                if (currentPage < totalPages) {
+                    currentPage++;
+                    displayResultsPage();
+                }
+            });
+            
+            document.querySelectorAll('[data-page]').forEach(button => {
+                button.addEventListener('click', (e) => {
+                    currentPage = parseInt(e.target.getAttribute('data-page'));
+                    displayResultsPage();
+                });
+            });
+        }
+    </script>
+</body>
+</html>
